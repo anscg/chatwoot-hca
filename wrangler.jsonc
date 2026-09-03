@@ -1,0 +1,60 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "chatwoot-hca",
+  "main": "src/index.js",
+  "compatibility_date": "2026-09-01",
+  "observability": { "enabled": true },
+
+  // Creates the DNS record and route on deploy (the zone must be in this Cloudflare
+  // account). Use a hostname one label below the apex: Cloudflare's Universal SSL
+  // wildcard does not cover deeper names like login.chatwoot.example.com.
+  "routes": [
+    { "pattern": "chatwoot-login.example.com", "custom_domain": true }
+  ],
+
+  // Stores the allow-list edited from /admin. Create it once with:
+  //   npx wrangler kv namespace create CONFIG
+  // then paste the printed id below. Without it the dashboard is read-only.
+  "kv_namespaces": [
+    { "binding": "CONFIG", "id": "REPLACE_WITH_KV_NAMESPACE_ID" }
+  ],
+
+  "vars": {
+    // Hack Club Auth
+    "HCA_ISSUER": "https://auth.hackclub.com",
+    // auth.hackclub.com's discovery document under-reports its scopes: it advertises
+    // only "openid profile phone birthdate", but the OAuth guide documents
+    // "openid profile email name slack_id verification_status" for community apps.
+    // "profile" does not carry the email, so it must be requested explicitly.
+    "HCA_SCOPE": "openid email name",
+
+    // Your self-hosted Chatwoot
+    "CHATWOOT_BASE_URL": "https://chatwoot.example.com",
+    // Needed even with AUTO_PROVISION off: this is the account whose agent list
+    // is searched to turn an email into a Chatwoot user id.
+    "CHATWOOT_ACCOUNT_ID": "1",
+
+    // Pinned public URL. Requests arriving on any other hostname are refused.
+    "REDIRECT_URI": "https://chatwoot-login.example.com/auth/callback",
+
+    // Who may open /admin. Env-only on purpose — it cannot be changed from the
+    // dashboard, so no one can lock everyone out. Empty disables /admin entirely.
+    "ADMIN_EMAILS": "",
+
+    // Nobody is provisioned automatically: you must already be an agent in
+    // Chatwoot to get in. That agent check is the gate, so the allow-lists start
+    // empty rather than blocking agents who signed up with a non-hackclub email.
+    "AUTO_PROVISION": "false",
+    "ALLOWED_EMAIL_DOMAINS": "",
+    "ALLOWED_EMAILS": "",
+    "DEFAULT_ROLE": "agent",
+    "REQUIRE_VERIFIED_EMAIL": "true",
+
+    // Login screen copy
+    "BRAND_NAME": "Chatwoot",
+    "BRAND_BLURB": "Sign in with your Hack Club account."
+  }
+  // Secrets (wrangler secret put ...):
+  //   HCA_CLIENT_ID, HCA_CLIENT_SECRET, SESSION_SECRET,
+  //   CHATWOOT_PLATFORM_TOKEN, CHATWOOT_ADMIN_TOKEN
+}

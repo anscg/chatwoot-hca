@@ -1,0 +1,6 @@
+.DS_Store
+.dev.vars
+.impeccable/
+.wrangler/
+node_modules/
+wrangler.local.jsonc

@@ -1,0 +1,16 @@
+{
+  "name": "chatwoot-hca",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Hack Club Auth (auth.hackclub.com) sign-in for self-hosted Chatwoot, without SAML.",
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev -c $([ -f wrangler.local.jsonc ] && echo wrangler.local.jsonc || echo wrangler.jsonc)",
+    "deploy": "wrangler deploy -c $([ -f wrangler.local.jsonc ] && echo wrangler.local.jsonc || echo wrangler.jsonc)",
+    "tail": "wrangler tail",
+    "test": "node --test test/*.test.mjs"
+  },
+  "devDependencies": {
+    "wrangler": "^4.20.0"
+  }
+}

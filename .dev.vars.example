@@ -1,0 +1,24 @@
+# Copy to .dev.vars for `wrangler dev` (never commit the real file).
+
+# Hack Club Auth OAuth app (https://auth.hackclub.com/oauth/applications)
+HCA_CLIENT_ID=
+HCA_CLIENT_SECRET=
+
+# Random 32+ byte string: openssl rand -base64 32
+SESSION_SECRET=
+
+# Chatwoot super admin -> Platform Apps -> access token
+CHATWOOT_PLATFORM_TOKEN=
+
+# Access token of a Chatwoot administrator in CHATWOOT_ACCOUNT_ID
+# (Profile Settings -> Access Token). Used to look users up by email.
+CHATWOOT_ADMIN_TOKEN=
+
+# Only needed when the public URL differs from the request origin
+# REDIRECT_URI=https://chatwoot-hca.example.com/auth/callback
+
+# Local overrides (these shadow the vars in wrangler.jsonc during `wrangler dev`).
+# Keep REDIRECT_URI's host equal to the custom_domain route: wrangler dev serves
+# requests with that Host, so a localhost value here trips the host check (421).
+REDIRECT_URI=https://chatwoot-login.example.com/auth/callback
+ADMIN_EMAILS=you@hackclub.com

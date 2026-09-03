@@ -1,0 +1,33 @@
+# Chatwoot image with the chatwoot-hca sign-in button on its login screen.
+#
+# Build from the root of this repo, so public/hca-login.js is in the context:
+#
+#   docker build -f docker/Dockerfile.example -t chatwoot-hca-ui .
+#
+# Then run it exactly as you run the stock image — nothing else changes, and no
+# Chatwoot config, migration or licence is involved.
+
+ARG CHATWOOT_VERSION=v4.7.0
+FROM chatwoot/chatwoot:${CHATWOOT_VERSION}
+
+# Rails serves /app/public, so the script is reachable at /hca-login.js.
+COPY public/hca-login.js /app/public/hca-login.js
+
+# Where /auth/login lives on your chatwoot-hca deployment. Everything below is
+# read off the script tag at runtime, so a copy change is a rebuild, not a patch.
+ARG HCA_LOGIN_URL=https://chatwoot-login.example.com/auth/login
+ARG HCA_LABEL="Continue with Hack Club"
+ARG HCA_NOTE="Only if you already have an account provisioned."
+# "true" folds Chatwoot's email/password form behind a link. It stays reachable
+# there, and at /app/login?password=1 whatever this is set to.
+ARG HCA_COLLAPSE_PASSWORD=true
+
+# Injected with sed rather than by replacing the layout, so a Chatwoot upgrade
+# brings its own vueapp.html.erb along instead of silently keeping a stale copy.
+# The trailing grep turns "upstream moved </head>" into a failed build rather
+# than an image whose login page quietly lost the button.
+RUN set -eu; \
+    layout=/app/app/views/layouts/vueapp.html.erb; \
+    tag="<script src=\"/hca-login.js\" data-login-url=\"${HCA_LOGIN_URL}\" data-label=\"${HCA_LABEL}\" data-note=\"${HCA_NOTE}\" data-collapse-password=\"${HCA_COLLAPSE_PASSWORD}\" defer></script>"; \
+    sed -i "s|</head>|  ${tag}\n</head>|" "$layout"; \
+    grep -q 'hca-login.js' "$layout"

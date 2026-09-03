@@ -19,7 +19,8 @@ browser ──▶ chatwoot-hca /auth/login
 ```
 
 There is also an **admin dashboard at `/admin`** for editing the allow-list without a
-redeploy.
+redeploy, and a script (`public/hca-login.js`) that puts the Hack Club button on **Chatwoot's
+own login page**, so nobody has to be told the Worker's URL.
 
 ## What you need on the Chatwoot side
 
@@ -105,6 +106,56 @@ Getting in requires **both** a completed Hack Club Auth sign-in *and* an email l
 Leave `ADMIN_EMAILS` empty to switch the dashboard off entirely. With no KV namespace bound,
 `/admin` still renders but is read-only and says so.
 
+## The Chatwoot login screen
+
+Everything above puts a working front door at `https://<your-worker>/` — but nobody types
+that. People go to Chatwoot, and Chatwoot shows them an email and password form with no hint
+that a Hack Club account is what they want.
+
+`public/hca-login.js` fixes that from inside Chatwoot's own login page. Copy it into the
+image and add one `<script>` tag to the dashboard layout — see `docker/Dockerfile.example`,
+which does both:
+
+```bash
+docker build -f docker/Dockerfile.example \
+  --build-arg CHATWOOT_VERSION=v4.7.0 \
+  --build-arg HCA_LOGIN_URL=https://chatwoot-login.example.com/auth/login \
+  -t chatwoot-hca-ui .
+```
+
+It changes three things at `/app/login`:
+
+1. **A "Continue with Hack Club" button above the form**, in the slot Chatwoot itself uses
+   for its Google OAuth button.
+2. **The email/password form folded away** behind *Sign in with a password*, so the SSO route
+   is the obvious one rather than one option among two. Anyone who opens it keeps it open on
+   later visits.
+3. **A "Signing you in…" cover during the hand-off.** Chatwoot's login view auto-submits when
+   it sees `?sso_auth_token=` (`created() { if (this.ssoAuthToken) this.submitLogin() }`),
+   which otherwise flashes the password form at someone who has already signed in.
+
+Copy is set on the script tag, not in the file — `data-login-url` (required), `data-label`,
+`data-note` (`data-note=""` drops the line under the button), `data-logo`,
+`data-collapse-password` and `data-auto-redirect`.
+
+Two escape hatches, because a login page is a bad place to be clever:
+
+- **`/app/login?password=1`** skips the script entirely and gives you the stock form. Worth
+  knowing before you need it — Hack Club Auth being down is exactly when you will.
+- **No `data-login-url`, a parse error, a Worker that is unreachable** all leave Chatwoot's
+  login page as it ships. The script only ever adds to the page.
+
+`data-auto-redirect="true"` goes further and sends `/app/login` straight to Hack Club Auth
+with no button to press. It is off by default: it takes the password form away from everyone,
+including whoever has to get in when Hack Club Auth is the broken thing. There is a 30-second
+loop guard, since a rejected sign-in lands back on this same page.
+
+The script hooks `[data-testid="email_input"]` and the form around it, styles itself under
+`#hca-*` ids, and picks up light or dark from Chatwoot's own `.dark` ancestor — so a Chatwoot
+upgrade that renames Tailwind classes cannot restyle it. If upstream moves `</head>` in
+`app/views/layouts/vueapp.html.erb`, the Dockerfile's final `grep` fails the build rather
+than shipping an image that quietly lost the button.
+
 ## Configuration
 
 | Variable | Default | Purpose |
@@ -143,6 +194,9 @@ Domain matching is exact: listing `hackclub.com` does **not** admit `sub.hackclu
 | `/admin` | Allow-list dashboard (GET to view, POST to save) |
 | `/admin/login`, `/admin/logout` | Dashboard session |
 | `/healthz` | Reports missing config, the redirect URI in use, whether KV is bound |
+
+And on the Chatwoot side, `/app/login` grows a Hack Club button — see [The Chatwoot login
+screen](#the-chatwoot-login-screen).
 
 ## Local configuration
 
@@ -248,7 +302,9 @@ What the code does, so you can check the claims rather than take them:
 ### Limits worth knowing
 
 - **Chatwoot's own password login stays open.** Without enterprise SAML there is no supported
-  switch to disable it; this adds a front door, it does not lock the old one. Provisioned
+  switch to disable it; this adds a front door, it does not lock the old one. `hca-login.js`
+  folding the form away is presentation only — the endpoint behind it is untouched, and
+  `?password=1` brings the form back. Provisioned
   users get a random password that is generated and discarded, but anyone who knows an
   agent's address can still use *forgot password*. If that matters, put Chatwoot's
   `/app/login` behind Cloudflare Access.
